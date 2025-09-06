@@ -10,7 +10,7 @@ import SwiftUI
 struct GameBoardView: View {
     var body: some View {
         VStack {
-            
+            SquareCellView(dataSource: Square(status: .x), action: {})
         }
     }
 }

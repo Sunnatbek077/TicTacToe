@@ -7,7 +7,7 @@
 
 import SwiftUI
 import Foundation
-internal import Combine
+import Combine
 
 enum SquareStatus {
     case empty
