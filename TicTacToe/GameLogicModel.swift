@@ -182,20 +182,21 @@ class TicTacToeModel: ObservableObject {
     // MARK: - Make a Move
     /// Handles a move by the player and triggers AI if needed
     func makeMove(index: Int, gameType: Bool) -> Bool {
-        var player: SquareStatus = playerToMove ? .o : .x
-        
+        var player: SquareStatus
+        if playerToMove == false {
+            player = .x
+        } else {
+            player = .o
+        }
         if squares[index].squareStatus == .empty {
             squares[index].squareStatus = player
-            
-            // Trigger AI move if player vs AI
             if playerToMove == false && gameType == false && gameOver.1 == false {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     self.moveAI()
-                    ContentView.triggerHapticFeedback(type: 2)
+                    GameBoardView.triggerHapticFeedback(type: 2)
                     _ = self.gameOver
                 }
             }
-            
             playerToMove.toggle()
             _ = self.gameOver
             return true

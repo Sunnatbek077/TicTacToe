@@ -10,41 +10,51 @@ import Combine
 import UIKit
 import Foundation
 
-class ViewModel: ObservableObject {
-    @Published var gameOver: Bool = false
-    @Published var winner: SquareStatus = .empty
-}
 
 struct ContentView: View {
-    // Make Trigger feedback with Taptic engine
-    static func triggerHapticFeedback(type: Int, override: Bool = false) {
-        let vibration = Foundation.UserDefaults.standard.value(forKey: "vibration") as? Bool
-        if vibration == true || override == true {
-            if type == 1 {
-                let generator = UIImpactFeedbackGenerator(style: .soft)
-                generator.impactOccurred()
-            } else if type == 2 {
-                let generator = UIImpactFeedbackGenerator(style: .medium)
-                generator.impactOccurred()
-            } else if type == 3 {
-                let generator = UIImpactFeedbackGenerator(style: .rigid)
-                generator.impactOccurred()
-            } else if type == 4 {
-                let generator = UIImpactFeedbackGenerator(style: .rigid)
-                generator.impactOccurred()
-            }
-        }
-    }
-    
+    @State private var selectedPlayer: String = "X"
+    @State private var selectedDifficulty: String = "Easy"
+    @State private var selectedGameMode: String = "Single Player"
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-            GameBoardView()
+        NavigationStack {
+            List {
+                Section(header: Text("Select Player").font(.headline)) {
+                    Picker("Player", selection: $selectedPlayer) {
+                        ForEach(["X", "O"], id: \.self) { Text($0) }
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                Section(header: Text("Game Mode").font(.headline)) {
+                    Picker("Mode", selection: $selectedGameMode) {
+                        ForEach(["Single Player", "Two Player"], id: \.self) { Text($0) }
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                Section(header: Text("Bot Difficulty").font(.headline)) {
+                    Picker("Difficulty", selection: $selectedDifficulty) {
+                        ForEach(["Easy", "Medium", "Hard"], id: \.self) { Text($0) }
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                Section {
+                    Button{
+                        
+                    } label: {
+                        Text("Start Game")
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(8)
+                    }
+                }
+            }
+            .navigationTitle("Tic Tac Toe")
+            .listStyle(.insetGrouped)
         }
-        .padding()
     }
 }
 
