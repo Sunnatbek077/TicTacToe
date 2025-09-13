@@ -16,6 +16,7 @@ class ViewModel: ObservableObject {
 }
 
 struct GameBoardView: View {
+    // Binding to control presentation from parent (ContentView)
     // Make Trigger feedback with Taptic engine
     static func triggerHapticFeedback(type: Int, override: Bool = false) {
         let vibration = Foundation.UserDefaults.standard.value(forKey: "vibration") as? Bool
@@ -35,14 +36,21 @@ struct GameBoardView: View {
             }
         }
     }
-    
+    var onExit: () -> Void
     var body: some View {
         VStack {
             SquareCellView(dataSource: Square(status: .x), action: {})
+            
+            Button {
+                onExit()
+            } label: {
+                Text("Exit")
+            }
         }
     }
 }
 
 #Preview {
-    GameBoardView()
+    // Preview with a constant binding
+    GameBoardView(onExit: {})
 }
