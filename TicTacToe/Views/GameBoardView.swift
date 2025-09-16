@@ -100,6 +100,14 @@ struct GameBoardView: View {
         }
     }
     
+    private var isCompactHeight: Bool {
+        #if os(iOS)
+        return vSizeClass == .compact || UIScreen.main.bounds.height <= 667 // iPhone SE 2/3 height
+        #else
+        return false
+        #endif
+    }
+    
     var body: some View {
         content
             .background(background)
@@ -176,13 +184,15 @@ struct GameBoardView: View {
             .padding(.horizontal, 24)
             .padding(.vertical, 16)
         } else {
-            VStack(spacing: 16) {
+            VStack(spacing: isCompactHeight ? 8 : 16) {
                 header
+                    .padding(.top, isCompactHeight ? 2 : 0)
                 board
-                    .padding(.horizontal)
+                    .padding(.horizontal, isCompactHeight ? 8 : 16)
                 footer
+                    .padding(.bottom, isCompactHeight ? 6 : 12)
             }
-            .padding(.top, 12)
+            .padding(.top, isCompactHeight ? 4 : 12)
         }
     }
     
@@ -242,21 +252,22 @@ struct GameBoardView: View {
     
     // MARK: - Header
     private var header: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: isCompactHeight ? 4 : 8) {
             Text(headerTitle)
-                .font(.system(.largeTitle, design: .rounded).weight(.bold))
+                .font(isCompactHeight ? .system(.title, design: .rounded).weight(.bold)
+                                      : .system(.largeTitle, design: .rounded).weight(.bold))
                 .foregroundStyle(.primary)
                 .accessibilityAddTraits(.isHeader)
             
             Text(headerSubtitle)
-                .font(.title3.weight(.semibold))
+                .font(isCompactHeight ? .headline : .title3.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .accessibilityLabel(headerSubtitle)
             
             Text(modeBadgeText)
                 .font(.footnote.weight(.semibold))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
+                .padding(.horizontal, isCompactHeight ? 8 : 10)
+                .padding(.vertical, isCompactHeight ? 4 : 6)
                 .background(.thinMaterial, in: Capsule())
                 .foregroundStyle(.primary)
                 .accessibilityHidden(false)
@@ -267,11 +278,9 @@ struct GameBoardView: View {
     // MARK: - Board
     private var board: some View {
         GeometryReader { proxy in
-            // Choose a comfortable side length: square, up to a max, with generous margins on big screens
             let maxSide = min(proxy.size.width, proxy.size.height)
-            // Cap size so on macOS/visionOS the board doesn't grow excessively wide
             let side = min(maxSide, preferredBoardSide(for: proxy.size))
-            let spacing: CGFloat = max(8, side * 0.02)
+            let spacing: CGFloat = isCompactHeight ? max(6, side * 0.015) : max(8, side * 0.02)
             let cellSize = (side - spacing * 2) / 3
             
             VStack(spacing: spacing) {
@@ -287,9 +296,7 @@ struct GameBoardView: View {
                                 )
                                 .accessibilityHint("Double-tap to place your mark")
                                 #if os(macOS)
-                                .onHover { hovering in
-                                    // simple hover effect via scale handled inside SquareButtonView
-                                }
+                                .onHover { _ in }
                                 #endif
                                 #if os(iOS) || os(visionOS)
                                 .hoverEffect(.lift)
@@ -303,56 +310,61 @@ struct GameBoardView: View {
             }
             .frame(width: side, height: side, alignment: .center)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: isWide ? .center : .top)
-            .padding(isWide ? 12 : 0)
+            .padding(isWide ? 12 : (isCompactHeight ? 4 : 8))
         }
-        .frame(minHeight: 420)
+        .frame(minHeight: isCompactHeight ? 360 : 420)
         .accessibilityElement(children: .contain)
     }
     
     // Calculate a pleasant maximum board side depending on platform and size
     private func preferredBoardSide(for size: CGSize) -> CGFloat {
         #if os(macOS)
-        // Leave space for side panels; keep board around 520–640 points typically
         return min(640, max(420, min(size.width, size.height) * 0.8))
         #elseif os(visionOS)
-        // Slightly larger for comfortable reach in space
         return min(720, max(480, min(size.width, size.height) * 0.85))
         #else
         // iPad/iPhone
         if hSizeClass == .regular {
+            // iPad or landscape regular
             return min(600, max(420, min(size.width, size.height) * 0.9))
         } else {
-            return min(420, max(360, min(size.width, size.height) * 0.95))
+            // Compact width devices (iPhones). Favor larger board on 16:9 height by using more height.
+            if isCompactHeight {
+                // On iPhone SE 2/3, give board priority while keeping header/footer visible
+                return min(420, max(340, min(size.width, size.height) * 0.98))
+            } else {
+                return min(440, max(360, min(size.width, size.height) * 0.95))
+            }
         }
         #endif
     }
     
     // MARK: - Footer
     private var footer: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: isCompactHeight ? 8 : 12) {
             Button {
                 resetForNextRound()
             } label: {
                 Label("Restart", systemImage: "arrow.counterclockwise.circle.fill")
-                    .font(.headline)
+                    .font(isCompactHeight ? .subheadline : .headline)
             }
             .buttonStyle(.borderedProminent)
             .tint(.accentColor)
             .accessibilityLabel("Restart game")
             
-            Spacer(minLength: 12)
+            Spacer(minLength: isCompactHeight ? 8 : 12)
             
             Button(role: .destructive) {
                 exitToMenu()
             } label: {
                 Label("Exit", systemImage: "xmark.circle.fill")
-                    .font(.headline)
+                    .font(isCompactHeight ? .subheadline : .headline)
             }
             .buttonStyle(.bordered)
             .accessibilityLabel("Exit to menu")
         }
-        .padding(.horizontal)
-        .padding(.top, 6)
+        .padding(.horizontal, isCompactHeight ? 12 : 16)
+        .padding(.top, isCompactHeight ? 2 : 6)
     }
     
     // Buttons only for the right panel in wide layouts
@@ -382,7 +394,6 @@ struct GameBoardView: View {
     private var background: some View {
         Group {
             #if os(visionOS)
-            // Transparent background works well with ornaments/spatial contexts
             Color.clear
             #else
             if colorScheme == .dark {
@@ -549,11 +560,20 @@ private struct SquareButtonView: View {
     }
     
     private var backgroundFill: some ShapeStyle {
+        #if os(iOS)
+        // On small iPhones, prefer a simpler background for clarity and contrast
+        if case .empty = dataSource.squareStatus {
+            return AnyShapeStyle(Color.secondary.opacity(0.08))
+        } else {
+            return AnyShapeStyle(colorScheme == .dark ? Color(UIColor.secondarySystemBackground) : Color(UIColor.systemBackground))
+        }
+        #else
         if case .empty = dataSource.squareStatus {
             return AnyShapeStyle(.thinMaterial)
         } else {
             return AnyShapeStyle(colorScheme == .dark ? Color(UIColor.secondarySystemBackground) : Color(UIColor.systemBackground))
         }
+        #endif
     }
     
     private var borderColor: Color {
@@ -570,7 +590,7 @@ private struct SquareButtonView: View {
     }
     
     private var cornerRadius: CGFloat {
-        max(12, size * 0.08)
+        max(10, size * 0.08)
     }
     
     private var scaleEffectValue: CGFloat {
