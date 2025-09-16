@@ -24,7 +24,7 @@ struct Board {
     // MARK: - Initializer
     /// Initializes a new board with default or provided values
     init(
-        position: [SquareStatus] = [.empty, .empty, .empty, .empty, .empty, .empty, .empty, .empty, .empty],
+        position: [SquareStatus] = Array(repeating: .empty, count: 9),
         turn: SquareStatus = .x,
         lastMove: Int = -1
     ) {
@@ -76,53 +76,64 @@ struct Board {
     
     // MARK: - Minimax Algorithm
     /// Recursive minimax algorithm to evaluate board positions
-    func minimax(_ board: Board, maximizing: Bool, originalPlayer: SquareStatus) -> Int{
-        // Terminal conditions
-        if board.isWin && originalPlayer == board.opposite { return 1 } // Opponent wins
-        else if board.isWin && originalPlayer != board.opposite { return -1 } // Current player loses
-        else if board.isDraw { return 0 } // Draw
+    func minimax(_ board: Board, depth: Int, alpha: inout Int, beta: inout Int, maximizing: Bool, originalPlayer: SquareStatus) -> Int {
+        if board.isWin && originalPlayer == board.opposite { return 10 - depth }
+        else if board.isWin && originalPlayer != board.opposite { return depth - 10 }
+        else if board.isDraw { return 0 }
         
         if maximizing {
-            var bestEval = Int.min
+            var maxEval = Int.min
             for move in board.legalMoves {
-                let result = minimax(board.move(move), maximizing: false, originalPlayer: originalPlayer)
-                bestEval = max(result, bestEval)
+                var a = alpha, b = beta
+                let eval = minimax(board.move(move), depth: depth + 1, alpha: &a, beta: &b, maximizing: false, originalPlayer: originalPlayer)
+                maxEval = max(maxEval, eval)
+                alpha = max(alpha, eval)
+                if beta <= alpha { break }
             }
-            return bestEval
+            return maxEval
         } else {
-            var worstEval = Int.max
+            var minEval = Int.max
             for move in board.legalMoves {
-                let result = minimax(board.move(move), maximizing: true, originalPlayer: originalPlayer)
-                worstEval = min(result, worstEval)
+                var a = alpha, b = beta
+                let eval = minimax(board.move(move), depth: depth + 1, alpha: &a, beta: &b, maximizing: true, originalPlayer: originalPlayer)
+                minEval = min(minEval, eval)
+                beta = min(beta, eval)
+                if beta <= alpha { break }
             }
-            return worstEval
+            return minEval
         }
     }
     
-    // MARK: - Find the Best Move for AI
-    /// Returns the best move for AI using minimax
+    // Optional: convenience wrapper to start minimax with defaults
+    private func evaluateMove(_ board: Board, maximizing: Bool, originalPlayer: SquareStatus) -> Int {
+        var alpha = Int.min
+        var beta = Int.max
+        return minimax(board, depth: 0, alpha: &alpha, beta: &beta, maximizing: maximizing, originalPlayer: originalPlayer)
+    }
+    
+    // MARK: - Find the Best Move for AI (Hard)
     func findBestMove(_ board: Board) -> Int? {
         var bestEval = Int.min
         var bestMove = -1
         for move in board.legalMoves {
-            let result = minimax(board.move(move), maximizing: false, originalPlayer: board.turn)
+            let childBoard = board.move(move)
+            let result = evaluateMove(childBoard, maximizing: false, originalPlayer: board.turn)
             if result > bestEval {
                 bestEval = result
                 bestMove = move
             }
         }
-        return bestMove
+        return bestMove >= 0 ? bestMove : nil
     }
 }
 
 // MARK: - TicTacToeModel Class
 /// Observable object that manages the game state for the UI
 class TicTacToeModel: ObservableObject {
-    @Published var squares = [Square]()           // Array representing the board squares
-    @Published var playerToMove: Bool = false    // Tracks which player's turn
-    @ObservedObject var viewModel: ViewModel     // External view model reference
+    @Published var squares = [Square]()
+    @Published var playerToMove: Bool = false
+    @ObservedObject var viewModel: ViewModel
     
-    // MARK: - Initializer
     init(viewModel: ViewModel) {
         self.viewModel = viewModel
         for _ in 0..<9 {
@@ -130,39 +141,33 @@ class TicTacToeModel: ObservableObject {
         }
     }
     
-    // MARK: - Reset Game
-    /// Resets all squares to empty and resets the turn
-    func resetGame() -> Void {
-        for i in 0...8 {
+    // Reset Game
+    func resetGame() {
+        for i in 0..<9 {
             squares[i].squareStatus = .empty
             playerToMove = false
         }
     }
     
-    // MARK: - Check Game Over
-    /// Returns the winner and whether the game is over
+    // Game Over Check
     var gameOver: (SquareStatus, Bool) {
         get {
             if viewModel.gameOver == false {
-                // 1️⃣ Avval g‘olibni tekshir
                 if winner.0 != .empty {
                     colorize(check: winner.0, row: winner.1)
                     viewModel.winner = winner.0
                     return (winner.0, true)
                 }
-                
-                // 2️⃣ Agar bo‘sh katak qolmagan bo‘lsa -> durang
                 if squares.allSatisfy({ $0.squareStatus != .empty }) {
                     viewModel.gameOver = true
-                    return (.empty, true) // durang
+                    return (.empty, true) // draw
                 }
             }
-            return (.empty, false) // davom etmoqda
+            return (.empty, false)
         }
     }
     
-    // MARK: - Colorize Winning Combination
-    /// Updates the UI to show winning combination in green
+    // Highlight Winner
     func colorize(check: SquareStatus, row: [Int]) {
         withAnimation {
             if check == .x {
@@ -178,18 +183,17 @@ class TicTacToeModel: ObservableObject {
         viewModel.gameOver = true
     }
     
-    // MARK: - Make a Move
-    /// Handles a move by the player and triggers AI if needed
-    func makeMove(index: Int, gameType: Bool) -> Bool {
-        guard index >= 0 && index < squares.count else { return false }   // ✅ out of range oldini olish
-        guard squares[index].squareStatus == .empty else { return false } // ✅ bo‘sh bo‘lsa o‘yna
+    // Make Move
+    func makeMove(index: Int, gameType: Bool, difficulty: AIDifficulty = .hard) -> Bool {
+        guard index >= 0 && index < squares.count else { return false }
+        guard squares[index].squareStatus == .empty else { return false }
         
         let player: SquareStatus = playerToMove ? .o : .x
         squares[index].squareStatus = player
         
         if playerToMove == false && gameType == false && gameOver.1 == false {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                self.moveAI()
+                self.moveAI(difficulty: difficulty)
                 GameBoardView.triggerHapticFeedback(type: 2)
                 _ = self.gameOver
             }
@@ -200,41 +204,36 @@ class TicTacToeModel: ObservableObject {
         return true
     }
     
-    // MARK: - Current Board State
+    // Board state
     var getBoard: [SquareStatus] {
-        var moves: Array = [SquareStatus]()
-        for i in 0..<9 {
-            moves.append(squares[i].squareStatus)
-        }
-        return moves
+        squares.map { $0.squareStatus }
     }
     
-    // MARK: - AI Move
-    private func moveAI() {
-        let boardMoves: [SquareStatus] = getBoard
-        let testBoard: Board = Board(position: boardMoves, turn: .o, lastMove: -1)
-        guard let answer = testBoard.findBestMove(testBoard) else { return }
+    // AI Move
+    private func moveAI(difficulty: AIDifficulty) {
+        let boardMoves = getBoard
+        let testBoard = Board(position: boardMoves, turn: .o, lastMove: -1)
+        let answer = testBoard.bestMove(difficulty: difficulty)
+        guard answer >= 0 else { return }
         playerToMove = true
-        _ = makeMove(index: answer, gameType: true)
+        _ = makeMove(index: answer, gameType: true, difficulty: difficulty)
     }
     
-    // MARK: - Determine Winner
+    // Winner Check
     private var winner: (SquareStatus, [Int]) {
-        get {
-            let allCombos = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]
-            for combo in allCombos {
-                if let check = self.checkIndexes(combo) {
-                    return (check, combo)
-                }
+        let allCombos = [[0,1,2],[3,4,5],[6,7,8],
+                         [0,3,6],[1,4,7],[2,5,8],
+                         [0,4,8],[2,4,6]]
+        for combo in allCombos {
+            if let check = self.checkIndexes(combo) {
+                return (check, combo)
             }
-            return (.empty, [])
         }
+        return (.empty, [])
     }
     
-    // Checks if a specific set of indexes has a winner
     private func checkIndexes(_ indexes : [Int]) -> SquareStatus? {
-        var xCount: Int = 0
-        var oCount: Int = 0
+        var xCount = 0, oCount = 0
         for index in indexes {
             let square = squares[index]
             if square.squareStatus == .x || square.squareStatus == .xw { xCount += 1 }
@@ -246,11 +245,10 @@ class TicTacToeModel: ObservableObject {
     }
 }
 
-// MARK: - Main Logic moves (Simpler Observable Object)
+// MARK: - Simple TicTacToe State
 class TicTacToe: ObservableObject {
     @Published var squares = [Square]()
     @Published var playerToMove: Bool = false
-    
     init() {}
 }
 
@@ -270,29 +268,27 @@ extension Board {
         case .medium:
             return mediumMove()
         case .hard:
-            return findBestMove(self) ?? easyMove() // fallback to random if minimax fails
+            return findBestMove(self) ?? easyMove()
         }
     }
     
-    /// Easy difficulty: random move
     private func easyMove() -> Int {
         legalMoves.randomElement() ?? -1
     }
     
-    /// Medium difficulty: try to win or block opponent, else random
     private func mediumMove() -> Int {
-        // 1️⃣ Check if AI can win
+        // 1️⃣ Try to win
         for candidate in legalMoves {
             let newBoard = self.move(candidate)
             if newBoard.isWin { return candidate }
         }
-        // 2️⃣ Check if opponent can win and block
+        // 2️⃣ Block opponent
         for candidate in legalMoves {
             let newBoard = self.move(candidate)
             let opponentBoard = Board(position: newBoard.pos, turn: self.opposite)
             if opponentBoard.isWin { return candidate }
         }
-        // 3️⃣ Otherwise random move
+        // 3️⃣ Otherwise random
         return easyMove()
     }
 }
