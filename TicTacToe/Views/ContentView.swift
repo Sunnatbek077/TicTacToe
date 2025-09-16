@@ -11,6 +11,10 @@ import UIKit
 import Foundation
 
 struct ContentView: View {
+    @Environment(\.horizontalSizeClass) private var hSizeClass
+    @Environment(\.verticalSizeClass) private var vSizeClass
+    @Environment(\.colorScheme) private var colorScheme
+
     @State private var selectedPlayer: String = "X"
     @State private var selectedDifficulty: String = "Easy"
     @State private var selectedGameMode: String = "AI"
@@ -56,19 +60,45 @@ struct ContentView: View {
         false
     }
     
+    // Device/layout adaptivity
+    private var isCompactHeightPhone: Bool {
+        #if os(iOS)
+        // iPhone SE 2/3 and other compact-height scenarios
+        return vSizeClass == .compact || UIScreen.main.bounds.height <= 667
+        #else
+        return false
+        #endif
+    }
+    
+    private var contentMaxWidth: CGFloat {
+        #if os(macOS)
+        return 720
+        #elseif os(visionOS)
+        return 780
+        #else
+        // iOS/iPadOS
+        if hSizeClass == .regular {
+            return 700
+        } else {
+            // iPhone
+            return isCompactHeightPhone ? 380 : 500
+        }
+        #endif
+    }
+    
     var body: some View {
         NavigationStack {
             ZStack {
                 background
                 ScrollView {
-                    VStack(spacing: 24) {
+                    VStack(spacing: isCompactHeightPhone ? 16 : 24) {
                         heroHeader
                         configurationCard
                         startButton
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 24)
-                    .frame(maxWidth: 600)
+                    .padding(.horizontal, isCompactHeightPhone ? 12 : 16)
+                    .padding(.vertical, isCompactHeightPhone ? 16 : 24)
+                    .frame(maxWidth: contentMaxWidth)
                     .navigationDestination(isPresented: $showGame) {
                         GameBoardView(
                             onExit: { showGame = false },
@@ -78,28 +108,33 @@ struct ContentView: View {
                             difficulty: mappedDifficulty,
                             startingPlayerIsO: startingPlayerIsO
                         )
+                        // Prefer consistent title behavior on all platforms
+                        .navigationBarTitleDisplayMode(.inline)
                     }
                 }
             }
             .navigationTitle("Tic Tac Toe")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                topToolbar
+            }
         }
     }
     
     // MARK: - Header
     private var heroHeader: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: isCompactHeightPhone ? 8 : 12) {
             // App “mark” — replace with your app icon if desired
             Text("⭕️❌")
-                .font(.system(size: 56))
+                .font(.system(size: isCompactHeightPhone ? 44 : 56))
                 .accessibilityHidden(true)
             
             Text("Ready to play?")
-                .font(.system(.largeTitle, design: .rounded).weight(.bold))
+                .font(.system(isCompactHeightPhone ? .title : .largeTitle, design: .rounded).weight(.bold))
                 .multilineTextAlignment(.center)
             
             Text("Choose your setup and start a game.")
-                .font(.body)
+                .font(isCompactHeightPhone ? .subheadline : .body)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
             
@@ -115,13 +150,13 @@ struct ContentView: View {
                 .accessibilityLabel("Current configuration: \(configurationSummary)")
         }
         .frame(maxWidth: .infinity)
-        .padding(.top, 8)
+        .padding(.top, isCompactHeightPhone ? 4 : 8)
         .transition(.opacity.combined(with: .move(edge: .top)))
     }
     
     // MARK: - Configuration
     private var configurationCard: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: isCompactHeightPhone ? 16 : 20) {
             // Player
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
@@ -167,7 +202,6 @@ struct ContentView: View {
                 .accessibilityLabel("Select game mode")
                 .onChange(of: selectedGameMode) { _, newValue in
                     // Gentle defaults:
-                    // If switching to PvP, default to X (conventional start), but respect user choice if they change it back.
                     if newValue == "P v P" {
                         if selectedPlayer != "X" {
                             withAnimation(.easeInOut(duration: 0.15)) {
@@ -209,13 +243,13 @@ struct ContentView: View {
                     .opacity(mappedGameTypeIsPVP ? 0.5 : 1.0)
             }
         }
-        .padding(18)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .padding(isCompactHeightPhone ? 14 : 18)
+        .background(cardBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .strokeBorder(Color.secondary.opacity(0.15), lineWidth: 1)
         )
-        .shadow(color: Color.black.opacity(0.06), radius: 10, x: 0, y: 6)
+        .shadow(color: shadowColor.opacity(0.06), radius: 10, x: 0, y: 6)
         .animation(.easeInOut(duration: 0.2), value: selectedGameMode)
         .animation(.easeInOut(duration: 0.2), value: selectedDifficulty)
         .animation(.easeInOut(duration: 0.2), value: selectedPlayer)
@@ -236,14 +270,16 @@ struct ContentView: View {
             }
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
-            .padding()
+            .padding(.vertical, isCompactHeightPhone ? 10 : 14)
+            .padding(.horizontal, 12)
             .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .shadow(color: Color.accentColor.opacity(0.35), radius: 10, x: 0, y: 6)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(startButtonDisabled)
         .opacity(startButtonDisabled ? 0.6 : 1.0)
-        .padding(.top, 4)
+        .padding(.top, isCompactHeightPhone ? 2 : 4)
         .accessibilityLabel("Start game")
         .accessibilityHint("Starts a new game with the selected configuration")
     }
@@ -251,9 +287,51 @@ struct ContentView: View {
     // MARK: - Background
     private var background: some View {
         Group {
+            #if os(macOS)
+            Color(nsColor: .windowBackgroundColor)
+            #elseif os(visionOS)
+            Color.clear
+            #else
             Color(UIColor.systemGroupedBackground)
+            #endif
         }
         .ignoresSafeArea()
+    }
+    
+    private var cardBackground: some ShapeStyle {
+        #if os(macOS)
+        return AnyShapeStyle(.regularMaterial)
+        #elseif os(visionOS)
+        return AnyShapeStyle(.thinMaterial)
+        #else
+        return AnyShapeStyle(.thinMaterial)
+        #endif
+    }
+    
+    private var shadowColor: Color {
+        colorScheme == .dark ? .black : .gray
+    }
+    
+    // MARK: - Toolbar
+    @ToolbarContentBuilder
+    private var topToolbar: some ToolbarContent {
+        #if os(macOS)
+        ToolbarItem(placement: .automatic) {
+            Text(configurationSummary)
+                .font(.footnote.weight(.semibold))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(.thinMaterial, in: Capsule())
+        }
+        #else
+        ToolbarItem(placement: .principal) {
+            Text(configurationSummary)
+                .font(.footnote.weight(.semibold))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(.thinMaterial, in: Capsule())
+        }
+        #endif
     }
     
     // MARK: - Start
