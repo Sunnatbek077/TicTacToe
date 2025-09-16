@@ -125,7 +125,7 @@ class TicTacToeModel: ObservableObject {
     // MARK: - Initializer
     init(viewModel: ViewModel) {
         self.viewModel = viewModel
-        for _ in 0...8 {
+        for _ in 0..<9 {
             squares.append(Square(status: .empty))
         }
     }
@@ -144,21 +144,20 @@ class TicTacToeModel: ObservableObject {
     var gameOver: (SquareStatus, Bool) {
         get {
             if viewModel.gameOver == false {
+                // 1️⃣ Avval g‘olibni tekshir
                 if winner.0 != .empty {
                     colorize(check: winner.0, row: winner.1)
                     viewModel.winner = winner.0
                     return (winner.0, true)
-                } else {
-                    for i in 0...8 {
-                        if squares[i].squareStatus == .empty {
-                            return (.empty, false)
-                        }
-                        viewModel.gameOver = true
-                        return (.empty, true)
-                    }
+                }
+                
+                // 2️⃣ Agar bo‘sh katak qolmagan bo‘lsa -> durang
+                if squares.allSatisfy({ $0.squareStatus != .empty }) {
+                    viewModel.gameOver = true
+                    return (.empty, true) // durang
                 }
             }
-            return (.empty, false)
+            return (.empty, false) // davom etmoqda
         }
     }
     
@@ -182,32 +181,29 @@ class TicTacToeModel: ObservableObject {
     // MARK: - Make a Move
     /// Handles a move by the player and triggers AI if needed
     func makeMove(index: Int, gameType: Bool) -> Bool {
-        var player: SquareStatus
-        if playerToMove == false {
-            player = .x
-        } else {
-            player = .o
-        }
-        if squares[index].squareStatus == .empty {
-            squares[index].squareStatus = player
-            if playerToMove == false && gameType == false && gameOver.1 == false {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    self.moveAI()
-                    GameBoardView.triggerHapticFeedback(type: 2)
-                    _ = self.gameOver
-                }
+        guard index >= 0 && index < squares.count else { return false }   // ✅ out of range oldini olish
+        guard squares[index].squareStatus == .empty else { return false } // ✅ bo‘sh bo‘lsa o‘yna
+        
+        let player: SquareStatus = playerToMove ? .o : .x
+        squares[index].squareStatus = player
+        
+        if playerToMove == false && gameType == false && gameOver.1 == false {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.moveAI()
+                GameBoardView.triggerHapticFeedback(type: 2)
+                _ = self.gameOver
             }
-            playerToMove.toggle()
-            _ = self.gameOver
-            return true
         }
-        return false
+        
+        playerToMove.toggle()
+        _ = self.gameOver
+        return true
     }
     
     // MARK: - Current Board State
     var getBoard: [SquareStatus] {
         var moves: Array = [SquareStatus]()
-        for i in 0...8 {
+        for i in 0..<9 {
             moves.append(squares[i].squareStatus)
         }
         return moves

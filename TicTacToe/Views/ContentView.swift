@@ -14,12 +14,22 @@ import Foundation
 struct ContentView: View {
     @State private var selectedPlayer: String = "X"
     @State private var selectedDifficulty: String = "Easy"
-    @State private var selectedGameMode: String = "Single Player"
+    @State private var selectedGameMode: String = "AI"
     @State private var showGame: Bool = false
+
+    // Keep these as StateObjects so they persist while ContentView is alive
+    @StateObject private var viewModel = ViewModel()
+    @StateObject private var ticTacToeModel: TicTacToeModel
+
+    init() {
+        let vm = ViewModel()
+        _viewModel = StateObject(wrappedValue: vm)
+        _ticTacToeModel = StateObject(wrappedValue: TicTacToeModel(viewModel: vm))
+    }
     
     var body: some View {
         if showGame {
-            GameBoardView(onExit: {showGame = false})
+            GameBoardView(onExit: { showGame = false }, viewModel: viewModel, ticTacToe: ticTacToeModel)
         } else {
             NavigationStack {
                 List {
@@ -32,7 +42,7 @@ struct ContentView: View {
 
                     Section(header: Text("Game Mode").font(.headline)) {
                         Picker("Mode", selection: $selectedGameMode) {
-                            ForEach(["Single Player", "Two Player"], id: \.self) { Text($0) }
+                            ForEach(["AI", "P v P"], id: \.self) { Text($0) }
                         }
                         .pickerStyle(.segmented)
                     }
@@ -42,6 +52,8 @@ struct ContentView: View {
                             ForEach(["Easy", "Medium", "Hard"], id: \.self) { Text($0) }
                         }
                         .pickerStyle(.segmented)
+                        .disabled(selectedGameMode == "P v P")
+                        .opacity(selectedGameMode == "P v P" ? 0.5 : 1.0)
                     }
 
                     Section {
