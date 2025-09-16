@@ -134,6 +134,10 @@ class TicTacToeModel: ObservableObject {
     @Published var playerToMove: Bool = false
     @ObservedObject var viewModel: ViewModel
     
+    // New: which mark the AI plays (relevant only when playing vs AI)
+    // .x means AI plays X, .o means AI plays O
+    var aiPlays: SquareStatus = .o
+    
     init(viewModel: ViewModel) {
         self.viewModel = viewModel
         for _ in 0..<9 {
@@ -184,6 +188,7 @@ class TicTacToeModel: ObservableObject {
     }
     
     // Make Move
+    // gameType: false = AI mode, true = PvP
     func makeMove(index: Int, gameType: Bool, difficulty: AIDifficulty = .hard) -> Bool {
         guard index >= 0 && index < squares.count else { return false }
         guard squares[index].squareStatus == .empty else { return false }
@@ -191,16 +196,21 @@ class TicTacToeModel: ObservableObject {
         let player: SquareStatus = playerToMove ? .o : .x
         squares[index].squareStatus = player
         
-        if playerToMove == false && gameType == false && gameOver.1 == false {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                self.moveAI(difficulty: difficulty)
-                GameBoardView.triggerHapticFeedback(type: 2)
-                _ = self.gameOver
+        playerToMove.toggle()
+        _ = self.gameOver
+        
+        // If AI mode and it's now AI's turn, trigger AI
+        if gameType == false && gameOver.1 == false {
+            let currentTurn: SquareStatus = playerToMove ? .o : .x
+            if currentTurn == aiPlays {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    self.moveAI(difficulty: difficulty)
+                    GameBoardView.triggerHapticFeedback(type: 2)
+                    _ = self.gameOver
+                }
             }
         }
         
-        playerToMove.toggle()
-        _ = self.gameOver
         return true
     }
     
@@ -212,11 +222,12 @@ class TicTacToeModel: ObservableObject {
     // AI Move
     private func moveAI(difficulty: AIDifficulty) {
         let boardMoves = getBoard
-        let testBoard = Board(position: boardMoves, turn: .o, lastMove: -1)
+        // Build board with the AI's mark to move
+        let aiTurn: SquareStatus = aiPlays
+        let testBoard = Board(position: boardMoves, turn: aiTurn, lastMove: -1)
         let answer = testBoard.bestMove(difficulty: difficulty)
         guard answer >= 0 else { return }
-        playerToMove = true
-        _ = makeMove(index: answer, gameType: true, difficulty: difficulty)
+        _ = makeMove(index: answer, gameType: false, difficulty: difficulty)
     }
     
     // Winner Check
@@ -292,3 +303,4 @@ extension Board {
         return easyMove()
     }
 }
+
