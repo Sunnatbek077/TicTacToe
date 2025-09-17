@@ -6,40 +6,39 @@
 //
 
 import Foundation
-import Combine
-import SwiftUI
 
 // MARK: - Skeleton map of the Board
-/// Represents the TicTacToe board and contains the main game logic
+/// Represents the TicTacToe board and contains the main game logic (UI-agnostic)
 struct Board {
     /// Current state of each square on the board
     let pos: [SquareStatus]
     /// Current player's turn
     let turn: SquareStatus
-    /// Last move made on the board
-    let lastMove: Int
-    /// Opponent of the current turn
-    let opposite: SquareStatus
+    /// Opponent of the current turn (computed)
+    var opposite: SquareStatus { turn == .x ? .o : .x }
     
     // MARK: - Initializer
     /// Initializes a new board with default or provided values
     init(
         position: [SquareStatus] = Array(repeating: .empty, count: 9),
-        turn: SquareStatus = .x,
-        lastMove: Int = -1
+        turn: SquareStatus = .x
     ) {
         self.pos = position
         self.turn = turn
-        self.lastMove = lastMove
-        self.opposite = turn == .x ? .o : .x
     }
     
     // MARK: - Make a move
-    /// Returns a new board after making a move at the specified location
+    /// Returns a new board after making a move at the specified location (unsafe, assumes valid move)
     func move(_ location: Int) -> Board {
         var tempPosition = pos
         tempPosition[location] = turn
-        return Board(position: tempPosition, turn: opposite, lastMove: location)
+        return Board(position: tempPosition, turn: opposite)
+    }
+    
+    /// Safe move helper: returns nil if index invalid or cell not empty
+    func safeMove(_ location: Int) -> Board? {
+        guard pos.indices.contains(location), pos[location] == .empty else { return nil }
+        return move(location)
     }
     
     // MARK: - Legal Moves
@@ -58,15 +57,20 @@ struct Board {
         ]
     }
     
-    /// Checks if the current board state is a win
-    var isWin: Bool {
+    /// Returns the winning line (indices) and winner mark if any
+    var winningLine: (indices: [Int], winner: SquareStatus)? {
         for combo in winningCombos {
             let a = combo[0], b = combo[1], c = combo[2]
             if pos[a] == pos[b], pos[b] == pos[c], pos[a] != .empty {
-                return true
+                return (combo, pos[a])
             }
         }
-        return false
+        return nil
+    }
+    
+    /// Checks if the current board state is a win
+    var isWin: Bool {
+        winningLine != nil
     }
     
     /// Checks if the game is a draw (no empty squares and no winner)
@@ -127,143 +131,7 @@ struct Board {
     }
 }
 
-// MARK: - TicTacToeModel Class
-/// Observable object that manages the game state for the UI
-class TicTacToeModel: ObservableObject {
-    @Published var squares = [Square]()
-    @Published var playerToMove: Bool = false
-    @ObservedObject var viewModel: ViewModel
-    
-    // New: which mark the AI plays (relevant only when playing vs AI)
-    // .x means AI plays X, .o means AI plays O
-    var aiPlays: SquareStatus = .o
-    
-    init(viewModel: ViewModel) {
-        self.viewModel = viewModel
-        for _ in 0..<9 {
-            squares.append(Square(status: .empty))
-        }
-    }
-    
-    // Reset Game
-    func resetGame() {
-        for i in 0..<9 {
-            squares[i].squareStatus = .empty
-            playerToMove = false
-        }
-    }
-    
-    // Game Over Check
-    var gameOver: (SquareStatus, Bool) {
-        get {
-            if viewModel.gameOver == false {
-                if winner.0 != .empty {
-                    colorize(check: winner.0, row: winner.1)
-                    viewModel.winner = winner.0
-                    return (winner.0, true)
-                }
-                if squares.allSatisfy({ $0.squareStatus != .empty }) {
-                    viewModel.gameOver = true
-                    return (.empty, true) // draw
-                }
-            }
-            return (.empty, false)
-        }
-    }
-    
-    // Highlight Winner
-    func colorize(check: SquareStatus, row: [Int]) {
-        withAnimation {
-            if check == .x {
-                squares[row[0]].squareStatus = .xw
-                squares[row[1]].squareStatus = .xw
-                squares[row[2]].squareStatus = .xw
-            } else {
-                squares[row[0]].squareStatus = .ow
-                squares[row[1]].squareStatus = .ow
-                squares[row[2]].squareStatus = .ow
-            }
-        }
-        viewModel.gameOver = true
-    }
-    
-    // Make Move
-    // gameType: false = AI mode, true = PvP
-    func makeMove(index: Int, gameType: Bool, difficulty: AIDifficulty = .hard) -> Bool {
-        guard index >= 0 && index < squares.count else { return false }
-        guard squares[index].squareStatus == .empty else { return false }
-        
-        let player: SquareStatus = playerToMove ? .o : .x
-        squares[index].squareStatus = player
-        
-        playerToMove.toggle()
-        _ = self.gameOver
-        
-        // If AI mode and it's now AI's turn, trigger AI
-        if gameType == false && gameOver.1 == false {
-            let currentTurn: SquareStatus = playerToMove ? .o : .x
-            if currentTurn == aiPlays {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    self.moveAI(difficulty: difficulty)
-                    GameBoardView.triggerHapticFeedback(type: 2)
-                    _ = self.gameOver
-                }
-            }
-        }
-        
-        return true
-    }
-    
-    // Board state
-    var getBoard: [SquareStatus] {
-        squares.map { $0.squareStatus }
-    }
-    
-    // AI Move
-    private func moveAI(difficulty: AIDifficulty) {
-        let boardMoves = getBoard
-        // Build board with the AI's mark to move
-        let aiTurn: SquareStatus = aiPlays
-        let testBoard = Board(position: boardMoves, turn: aiTurn, lastMove: -1)
-        let answer = testBoard.bestMove(difficulty: difficulty)
-        guard answer >= 0 else { return }
-        _ = makeMove(index: answer, gameType: false, difficulty: difficulty)
-    }
-    
-    // Winner Check
-    private var winner: (SquareStatus, [Int]) {
-        let allCombos = [[0,1,2],[3,4,5],[6,7,8],
-                         [0,3,6],[1,4,7],[2,5,8],
-                         [0,4,8],[2,4,6]]
-        for combo in allCombos {
-            if let check = self.checkIndexes(combo) {
-                return (check, combo)
-            }
-        }
-        return (.empty, [])
-    }
-    
-    private func checkIndexes(_ indexes : [Int]) -> SquareStatus? {
-        var xCount = 0, oCount = 0
-        for index in indexes {
-            let square = squares[index]
-            if square.squareStatus == .x || square.squareStatus == .xw { xCount += 1 }
-            else if square.squareStatus == .o || square.squareStatus == .ow { oCount += 1 }
-        }
-        if xCount == 3 { return .x }
-        else if oCount == 3 { return .o }
-        return nil
-    }
-}
-
-// MARK: - Simple TicTacToe State
-class TicTacToe: ObservableObject {
-    @Published var squares = [Square]()
-    @Published var playerToMove: Bool = false
-    init() {}
-}
-
-// MARK: - AI Difficulty Enum
+// MARK: - AI Difficulty Enum (core)
 enum AIDifficulty {
     case easy
     case medium
@@ -295,11 +163,16 @@ extension Board {
         }
         // 2️⃣ Block opponent
         for candidate in legalMoves {
-            let newBoard = self.move(candidate)
-            let opponentBoard = Board(position: newBoard.pos, turn: self.opposite)
+            let opponentBoard = Board(position: self.pos, turn: self.opposite).move(candidate)
             if opponentBoard.isWin { return candidate }
         }
-        // 3️⃣ Otherwise random
+        // 3️⃣ Heuristics: center > corners > edges
+        if legalMoves.contains(4) { return 4 }
+        let corners = [0, 2, 6, 8].filter { legalMoves.contains($0) }
+        if let corner = corners.randomElement() { return corner }
+        let edges = [1, 3, 5, 7].filter { legalMoves.contains($0) }
+        if let edge = edges.randomElement() { return edge }
+        // 4️⃣ Otherwise random (shouldn't reach here)
         return easyMove()
     }
 }
