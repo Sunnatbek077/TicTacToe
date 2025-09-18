@@ -46,9 +46,9 @@ This isn’t just the classic 3x3 grid game — it’s powered by a **super-stro
 ## 🚀 Getting Started  
 
 ### Requirements  
-- iOS 17+ / iPadOS 17+ / macOS 14+ / visionOS 1.0+  
-- Xcode 16+  
-- Swift 5.9+  
+- iOS 26+ / iPadOS 26+ / macOS 26+ / visionOS 1.0+  
+- Xcode 26+  
+- Swift 6+  
 
 ### Installation  
 Clone the repo and open in Xcode:  
