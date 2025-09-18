@@ -9,23 +9,24 @@ This isn’t just the classic 3x3 grid game — it’s powered by a **super-stro
 
 - 🧠 **Unbeatable Minimax AI**  
   Optimized for perfect decision-making with pruning and caching.  
-- 🎮 **Three Game Modes**  
-  1. **Player vs Player** – local multiplayer on one device.  
+- 🎮 **Two Game Modes**  
+  1. **Player vs Player** – play locally with a friend.  
   2. **Player vs AI** – challenge the computer at its best.  
-  3. **AI vs AI** – watch two bots battle it out.  
+- 💻 **Cross-Platform Support**  
+  Runs seamlessly on **iOS, iPadOS, macOS, and visionOS**.  
 - 🎨 **Smooth Graphics & Animations**  
   Clean SwiftUI design with a modern feel.  
 - 🔄 **Quick Restart & Clear UX**  
   Start new rounds instantly, with intuitive controls.  
 - 🛠 **100% SwiftUI + Combine**  
-  Written fully in Swift, no storyboards, ready for iOS.  
+  Fully Swift-based, no storyboards, optimized for Apple platforms.  
 
 ---
 
 ## 📸 Screenshots  
 
-| Game Board | AI vs AI | About Screen |
-|------------|----------|--------------|
+| Game Board | Player vs AI | About Screen |
+|------------|--------------|--------------|
 |  |  |  |
 
 *(Replace with your actual screenshots)*  
@@ -38,13 +39,14 @@ This isn’t just the classic 3x3 grid game — it’s powered by a **super-stro
 - **Combine** for reactive state management  
 - **Minimax Algorithm** for unbeatable AI  
 - **Clean MVVM-like structure** for scalability  
+- **Universal design** with platform-specific optimizations for macOS & visionOS  
 
 ---
 
 ## 🚀 Getting Started  
 
 ### Requirements  
-- iOS 17+  
+- iOS 17+ / iPadOS 17+ / macOS 14+ / visionOS 1.0+  
 - Xcode 16+  
 - Swift 5.9+  
 
