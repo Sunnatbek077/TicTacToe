@@ -21,7 +21,6 @@ struct StartButton: View {
                 Image(systemName: "play.circle.fill").imageScale(.large)
                 Text("Start Game").font(.headline)
             }
-            .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
             .padding(.vertical, isCompactHeightPhone ? 10 : 14)
             .padding(.horizontal, 12)

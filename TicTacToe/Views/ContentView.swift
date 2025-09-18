@@ -95,7 +95,6 @@ struct ContentView: View {
                                 Image(systemName: "person.circle.fill").imageScale(.large)
                                 Text("About Developer").font(.headline)
                             }
-                            .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, isCompactHeightPhone ? 10 : 14)
                             .padding(.horizontal, 12)
@@ -125,15 +124,7 @@ struct ContentView: View {
             }
             .navigationTitle("Tic Tac Toe")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Text(configurationSummary)
-                        .font(.footnote.weight(.semibold))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(.thinMaterial, in: Capsule())
-                }
-            }
+            
         }
     }
     

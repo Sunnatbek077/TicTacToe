@@ -13,9 +13,10 @@ struct HeroHeader: View {
     
     var body: some View {
         VStack(spacing: isCompactHeightPhone ? 8 : 12) {
-            Text("⭕️❌")
-                .font(.system(size: isCompactHeightPhone ? 44 : 56))
-                .accessibilityHidden(true)
+            Image("IconMenu")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 90, height: 90)
             
             Text("Ready to play?")
                 .font(.system(isCompactHeightPhone ? .title : .largeTitle, design: .rounded).weight(.bold))
