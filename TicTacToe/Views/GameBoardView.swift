@@ -136,32 +136,27 @@ struct GameBoardView: View {
                     }
                 }
             }
-            .alert(isPresented: $viewModel.gameOver, content: {
-                var title = ""
+            .alert(isPresented: $ticTacToe.gameOver) {
+                let title: String
                 if gameTypeIsPVP == false {
-                    // AI mode: map winner based on which mark AI plays
-                    if ticTacToe.aiPlays == SquareStatus.x {
-                        if viewModel.winner == .x { title = "AI won!" }
-                        else if viewModel.winner == .o { title = "You won!" }
-                        else { title = "Draw" }
+                    if ticTacToe.aiPlays == .x {
+                        title = ticTacToe.winner == .x ? "AI won!" :
+                                ticTacToe.winner == .o ? "You won!" : "Draw"
                     } else {
-                        if viewModel.winner == .x { title = "You won!" }
-                        else if viewModel.winner == .o { title = "AI won!" }
-                        else { title = "Draw" }
+                        title = ticTacToe.winner == .o ? "AI won!" :
+                                ticTacToe.winner == .x ? "You won!" : "Draw"
                     }
                 } else {
-                    // PvP: neutral
-                    if viewModel.winner == .x { title = "X won!" }
-                    else if viewModel.winner == .o { title = "O won!" }
-                    else { title = "Draw" }
-                }   
+                    title = ticTacToe.winner == .x ? "X won!" :
+                            ticTacToe.winner == .o ? "O won!" : "Draw"
+                }
                 return Alert(
                     title: Text(title),
                     dismissButton: .default(Text("Play Again")) {
                         resetForNextRound()
                     }
                 )
-            })
+            }
             // Keyboard/game controller shortcuts
             .onAppear {
                 // nothing required here; commands are declared at the Scene level if needed
