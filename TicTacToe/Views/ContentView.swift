@@ -22,12 +22,12 @@ struct ContentView: View {
 
     // Keep these as StateObjects so they persist while ContentView is alive
     @StateObject private var viewModel = ViewModel()
-    @StateObject private var ticTacToeModel: TicTacToeModel
+    @StateObject private var ticTacToeModel: GameViewModel
 
     init() {
         let vm = ViewModel()
         _viewModel = StateObject(wrappedValue: vm)
-        _ticTacToeModel = StateObject(wrappedValue: TicTacToeModel(viewModel: vm))
+        _ticTacToeModel = StateObject(wrappedValue: GameViewModel())
     }
     
     private var mappedDifficulty: AIDifficulty {
@@ -109,12 +109,12 @@ struct ContentView: View {
                             startingPlayerIsO: startingPlayerIsO
                         )
                         // Prefer consistent title behavior on all platforms
-                        .navigationBarTitleDisplayMode(.inline)
+                        .navigationBarTitleDisplayMode(NavigationBarItem.TitleDisplayMode.inline)
                     }
                 }
             }
             .navigationTitle("Tic Tac Toe")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(NavigationBarItem.TitleDisplayMode.inline)
             .toolbar {
                 topToolbar
             }
@@ -342,11 +342,11 @@ struct ContentView: View {
         // Configure who the AI is if playing vs AI
         if mappedGameTypeIsPVP == false {
             // If user selected O, AI is X; else AI is O
-            ticTacToeModel.aiPlays = startingPlayerIsO ? .x : .o
+            ticTacToeModel.aiPlays = startingPlayerIsO ? SquareStatus.x : SquareStatus.o
         }
         
-        // playerToMove: false means X to move, true means O to move
-        ticTacToeModel.playerToMove = startingPlayerIsO
+        // playerToMove: assign who starts as SquareStatus
+        ticTacToeModel.playerToMove = startingPlayerIsO ? SquareStatus.o : SquareStatus.x
         
         // Navigate to game
         showGame = true

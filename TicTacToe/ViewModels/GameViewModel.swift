@@ -56,17 +56,17 @@ class GameViewModel: ObservableObject {
         let player: SquareStatus = playerToMove
         squares[index].squareStatus = player
         
-        // Check result
+        // Check game state immediately after move
         evaluateGameOver()
         if gameOver { return true }
         
         // Toggle turn
         playerToMove = (playerToMove == .x) ? .o : .x
         
-        // If AI mode va endi AI navbati bo‘lsa, AI yuradi
-        if gameTypeIsPVP == false {
-            if playerToMove == aiPlays {
-                Task { await moveAIAsync(difficulty: difficulty, gameTypeIsPVP: gameTypeIsPVP) }
+        // Let AI move if it's its turn
+        if !gameTypeIsPVP, playerToMove == aiPlays {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                Task { await self.moveAIAsync(difficulty: difficulty, gameTypeIsPVP: gameTypeIsPVP) }
             }
         }
         
@@ -86,7 +86,7 @@ class GameViewModel: ObservableObject {
         let answer: Int = await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 let best = currentBoard.bestMove(difficulty: difficulty)
-                continuation.resume(returning: best ?? -1)
+                continuation.resume(returning: best)
             }
         }
         guard answer >= 0 else { return }

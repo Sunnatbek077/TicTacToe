@@ -21,7 +21,7 @@ struct GameBoardView: View {
     @Environment(\.horizontalSizeClass) private var hSizeClass
     @Environment(\.verticalSizeClass) private var vSizeClass
     @ObservedObject var viewModel: ViewModel
-    @ObservedObject var ticTacToe: TicTacToeModel
+    @ObservedObject var ticTacToe: GameViewModel
     
     // Configuration coming from ContentView
     let gameTypeIsPVP: Bool        // false = AI mode, true = PvP
@@ -60,13 +60,13 @@ struct GameBoardView: View {
     
     func buttonAction(_ index : Int) {
         withAnimation(.spring(response: 0.28, dampingFraction: 0.85)) {
-            _ = self.ticTacToe.makeMove(index: index, gameType: gameTypeIsPVP, difficulty: difficulty)
+            _ = self.ticTacToe.makeMove(index: index, gameTypeIsPVP: gameTypeIsPVP, difficulty: difficulty)
         }
         GameBoardView.triggerHapticFeedback(type: 2)
     }
     
     var currentPlayer: String {
-        self.ticTacToe.playerToMove == false ? "X" : "O"
+        self.ticTacToe.playerToMove == .x ? "X" : "O"
     }
     
     var headerTitle: String { "Tic Tac Toe" }
@@ -75,8 +75,8 @@ struct GameBoardView: View {
         if gameTypeIsPVP {
             return "\(currentPlayer)’s move"
         } else {
-            let aiMark = ticTacToe.aiPlays == .x ? "X" : "O"
-            if (ticTacToe.playerToMove == false && aiMark == "X") || (ticTacToe.playerToMove == true && aiMark == "O") {
+            let aiMark = ticTacToe.aiPlays == SquareStatus.x ? "X" : "O"
+            if (ticTacToe.playerToMove == .x && aiMark == "X") || (ticTacToe.playerToMove == .o && aiMark == "O") {
                 return "AI is thinking…"
             } else {
                 return "Your move"
@@ -88,7 +88,7 @@ struct GameBoardView: View {
         if gameTypeIsPVP {
             return "PvP"
         } else {
-            let aiSide = ticTacToe.aiPlays == .x ? "X" : "O"
+            let aiSide = ticTacToe.aiPlays == SquareStatus.x ? "X" : "O"
             let diff: String = {
                 switch difficulty {
                 case .easy: return "Easy"
@@ -118,20 +118,20 @@ struct GameBoardView: View {
             .onAppear {
                 // Ensure starting player is applied when entering the board
                 if ticTacToe.squares.allSatisfy({ $0.squareStatus == .empty }) {
-                    ticTacToe.playerToMove = startingPlayerIsO
+                    ticTacToe.playerToMove = startingPlayerIsO ? .o : .x
                 }
                 // If AI mode and AI plays X and board is empty, let AI start immediately
                 if gameTypeIsPVP == false,
-                   ticTacToe.aiPlays == .x,
+                   ticTacToe.aiPlays == SquareStatus.x,
                    ticTacToe.squares.allSatisfy({ $0.squareStatus == .empty }) {
                     // Make sure it's AI's turn (X)
-                    ticTacToe.playerToMove = false // false means X to move
+                    ticTacToe.playerToMove = .x
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                        let boardMoves = ticTacToe.getBoard
-                        let testBoard = Board(position: boardMoves, turn: .x, lastMove: -1)
+                        let boardMoves = ticTacToe.boardArray
+                        let testBoard = Board(position: boardMoves, turn: SquareStatus.x)
                         let answer = testBoard.bestMove(difficulty: difficulty)
                         if answer >= 0 {
-                            _ = ticTacToe.makeMove(index: answer, gameType: false, difficulty: difficulty)
+                            _ = ticTacToe.makeMove(index: answer, gameTypeIsPVP: false, difficulty: difficulty)
                         }
                     }
                 }
@@ -140,7 +140,7 @@ struct GameBoardView: View {
                 var title = ""
                 if gameTypeIsPVP == false {
                     // AI mode: map winner based on which mark AI plays
-                    if ticTacToe.aiPlays == .x {
+                    if ticTacToe.aiPlays == SquareStatus.x {
                         if viewModel.winner == .x { title = "AI won!" }
                         else if viewModel.winner == .o { title = "You won!" }
                         else { title = "Draw" }
@@ -154,7 +154,7 @@ struct GameBoardView: View {
                     if viewModel.winner == .x { title = "X won!" }
                     else if viewModel.winner == .o { title = "O won!" }
                     else { title = "Draw" }
-                }
+                }   
                 return Alert(
                     title: Text(title),
                     dismissButton: .default(Text("Play Again")) {
@@ -455,21 +455,21 @@ struct GameBoardView: View {
     private func resetForNextRound() {
         self.ticTacToe.resetGame()
         // Preserve initial settings
-        self.ticTacToe.playerToMove = startingPlayerIsO
+        self.ticTacToe.playerToMove = startingPlayerIsO ? .o : .x
         viewModel.gameOver = false
         viewModel.winner = .empty
         
         // If AI is X, let it start again
         if gameTypeIsPVP == false,
-           ticTacToe.aiPlays == .x,
+           ticTacToe.aiPlays == SquareStatus.x,
            ticTacToe.squares.allSatisfy({ $0.squareStatus == .empty }) {
-            ticTacToe.playerToMove = false // X
+            ticTacToe.playerToMove = .x
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                let boardMoves = ticTacToe.getBoard
-                let testBoard = Board(position: boardMoves, turn: .x, lastMove: -1)
+                let boardMoves = ticTacToe.boardArray
+                let testBoard = Board(position: boardMoves, turn: SquareStatus.x)
                 let answer = testBoard.bestMove(difficulty: difficulty)
                 if answer >= 0 {
-                    _ = ticTacToe.makeMove(index: answer, gameType: false, difficulty: difficulty)
+                    _ = ticTacToe.makeMove(index: answer, gameTypeIsPVP: false, difficulty: difficulty)
                 }
             }
         }
@@ -477,7 +477,7 @@ struct GameBoardView: View {
     
     private func exitToMenu() {
         self.ticTacToe.resetGame()
-        self.ticTacToe.playerToMove = startingPlayerIsO
+        self.ticTacToe.playerToMove = startingPlayerIsO ? .o : .x
         viewModel.gameOver = false
         viewModel.winner = .empty
         onExit()
@@ -520,7 +520,7 @@ private struct SquareButtonView: View {
                     .foregroundStyle(symbolColor)
                     .minimumScaleFactor(0.5)
                     .lineLimit(1)
-                    .contentTransition(.symbolEffect(.replace))
+                    .contentTransition(.opacity)
                     .animation(.spring(response: 0.25, dampingFraction: 0.85), value: dataSource.squareStatus)
             }
             .frame(width: size, height: size)
@@ -617,8 +617,8 @@ private struct SquareButtonView: View {
 #Preview {
     // Provide required observed objects for preview
     let viewModel = ViewModel()
-    let model = TicTacToeModel(viewModel: viewModel)
-    return NavigationStack {
+    let model = GameViewModel()
+    NavigationStack {
         GameBoardView(
             onExit: {},
             viewModel: viewModel,
