@@ -138,6 +138,7 @@ enum AIDifficulty {
     case hard
 }
 
+// MARK: - Difficulty-based AI
 extension Board {
     /// Returns the best move for the AI depending on the difficulty
     func bestMove(difficulty: AIDifficulty) -> Int {
@@ -177,3 +178,31 @@ extension Board {
     }
 }
 
+// MARK: - Future Optimizations (skeleton only)
+extension Board {
+    /// Compact bitmask representation (future use)
+    var bitmaskRepresentation: (xMask: Int, oMask: Int) {
+        // TODO
+        return (0, 0)
+    }
+    
+    /// Transposition table (future use)
+    static var transpositionTable: [Int: Int] = [:]
+    
+    func stateHash() -> Int {
+        // TODO
+        return pos.hashValue
+    }
+    
+    /// Move ordering heuristic (future use)
+    func orderedMoves() -> [Int] {
+        // TODO
+        return legalMoves
+    }
+    
+    /// Heuristic evaluation for non-terminal states (future use)
+    func heuristicScore(for player: SquareStatus) -> Int {
+        // TODO
+        return 0
+    }
+}
