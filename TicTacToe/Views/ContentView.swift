@@ -5,85 +5,64 @@
 //  Created by Sunnatbek on 31/08/25.
 //
 
+//
+//  ContentView.swift
+//  TicTacToe
+//
+
 import SwiftUI
-import Combine
-import UIKit
-import Foundation
 
 struct ContentView: View {
     @Environment(\.horizontalSizeClass) private var hSizeClass
     @Environment(\.verticalSizeClass) private var vSizeClass
     @Environment(\.colorScheme) private var colorScheme
-
-    @State private var selectedPlayer: String = "X"
-    @State private var selectedDifficulty: String = "Easy"
-    @State private var selectedGameMode: String = "AI"
+    
+    @State private var selectedPlayer: PlayerOption = .x
+    @State private var selectedDifficulty: DifficultyOption = .easy
+    @State private var selectedGameMode: GameMode = .ai
     @State private var showGame: Bool = false
-
-    // Keep these as StateObjects so they persist while ContentView is alive
+    
     @StateObject private var viewModel = ViewModel()
-    @StateObject private var ticTacToeModel: GameViewModel
-
-    init() {
-        let vm = ViewModel()
-        _viewModel = StateObject(wrappedValue: vm)
-        _ticTacToeModel = StateObject(wrappedValue: GameViewModel())
-    }
+    @StateObject private var ticTacToeModel = GameViewModel()
     
-    private var mappedDifficulty: AIDifficulty {
-        switch selectedDifficulty.lowercased() {
-        case "easy": return .easy
-        case "medium": return .medium
-        default: return .hard
-        }
-    }
-    
-    // false = AI mode, true = PvP (to match GameLogicModel.makeMove's gameType)
-    private var mappedGameTypeIsPVP: Bool {
-        selectedGameMode == "P v P"
-    }
-    
-    private var startingPlayerIsO: Bool {
-        selectedPlayer == "O"
-    }
+    private var startingPlayerIsO: Bool { selectedPlayer == .o }
     
     private var configurationSummary: String {
-        if mappedGameTypeIsPVP {
-            return "PvP • \(selectedPlayer) starts"
-        } else {
-            let aiSide = startingPlayerIsO ? "X" : "O"
-            return "AI: \(aiSide) • \(selectedDifficulty)"
-        }
+        selectedGameMode.isPVP
+        ? "PvP • \(selectedPlayer.rawValue) starts"
+        : "AI: \(startingPlayerIsO ? "X" : "O") • \(selectedDifficulty.rawValue)"
     }
     
-    private var startButtonDisabled: Bool {
-        false
-    }
-    
-    // Device/layout adaptivity
     private var isCompactHeightPhone: Bool {
         #if os(iOS)
-        // iPhone SE 2/3 and other compact-height scenarios
-        return vSizeClass == .compact || UIScreen.main.bounds.height <= 667
+        vSizeClass == .compact || UIScreen.main.bounds.height <= 667
         #else
-        return false
+        false
         #endif
     }
     
     private var contentMaxWidth: CGFloat {
         #if os(macOS)
-        return 720
+        720
         #elseif os(visionOS)
-        return 780
+        780
         #else
-        // iOS/iPadOS
-        if hSizeClass == .regular {
-            return 700
-        } else {
-            // iPhone
-            return isCompactHeightPhone ? 380 : 500
-        }
+        hSizeClass == .regular ? 700 : (isCompactHeightPhone ? 380 : 500)
         #endif
+    }
+    
+    private var cardBackground: AnyShapeStyle {
+        #if os(macOS)
+        AnyShapeStyle(.regularMaterial)
+        #elseif os(visionOS)
+        AnyShapeStyle(.thinMaterial)
+        #else
+        AnyShapeStyle(.thinMaterial)
+        #endif
+    }
+    
+    private var shadowColor: Color {
+        colorScheme == .dark ? .black : .gray
     }
     
     var body: some View {
@@ -92,9 +71,21 @@ struct ContentView: View {
                 background
                 ScrollView {
                     VStack(spacing: isCompactHeightPhone ? 16 : 24) {
-                        heroHeader
-                        configurationCard
-                        startButton
+                        HeroHeader(isCompactHeightPhone: isCompactHeightPhone,
+                                   configurationSummary: configurationSummary)
+                        
+                        ConfigurationCard(
+                            selectedPlayer: $selectedPlayer,
+                            selectedGameMode: $selectedGameMode,
+                            selectedDifficulty: $selectedDifficulty,
+                            isCompactHeightPhone: isCompactHeightPhone,
+                            shadowColor: shadowColor,
+                            cardBackground: cardBackground
+                        )
+                        
+                        StartButton(isCompactHeightPhone: isCompactHeightPhone) {
+                            startGame()
+                        }
                     }
                     .padding(.horizontal, isCompactHeightPhone ? 12 : 16)
                     .padding(.vertical, isCompactHeightPhone ? 16 : 24)
@@ -104,187 +95,28 @@ struct ContentView: View {
                             onExit: { showGame = false },
                             viewModel: viewModel,
                             ticTacToe: ticTacToeModel,
-                            gameTypeIsPVP: mappedGameTypeIsPVP,
-                            difficulty: mappedDifficulty,
+                            gameTypeIsPVP: selectedGameMode.isPVP,
+                            difficulty: selectedDifficulty.mapped,
                             startingPlayerIsO: startingPlayerIsO
                         )
-                        // Prefer consistent title behavior on all platforms
-                        .navigationBarTitleDisplayMode(NavigationBarItem.TitleDisplayMode.inline)
+                        .navigationBarTitleDisplayMode(.inline)
                     }
                 }
             }
             .navigationTitle("Tic Tac Toe")
-            .navigationBarTitleDisplayMode(NavigationBarItem.TitleDisplayMode.inline)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                topToolbar
+                ToolbarItem(placement: .principal) {
+                    Text(configurationSummary)
+                        .font(.footnote.weight(.semibold))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(.thinMaterial, in: Capsule())
+                }
             }
         }
     }
     
-    // MARK: - Header
-    private var heroHeader: some View {
-        VStack(spacing: isCompactHeightPhone ? 8 : 12) {
-            // App “mark” — replace with your app icon if desired
-            Text("⭕️❌")
-                .font(.system(size: isCompactHeightPhone ? 44 : 56))
-                .accessibilityHidden(true)
-            
-            Text("Ready to play?")
-                .font(.system(isCompactHeightPhone ? .title : .largeTitle, design: .rounded).weight(.bold))
-                .multilineTextAlignment(.center)
-            
-            Text("Choose your setup and start a game.")
-                .font(isCompactHeightPhone ? .subheadline : .body)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-            
-            // Dynamic summary chip
-            Text(configurationSummary)
-                .font(.footnote.weight(.semibold))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(.thinMaterial, in: Capsule())
-                .overlay(
-                    Capsule().strokeBorder(Color.secondary.opacity(0.15), lineWidth: 1)
-                )
-                .accessibilityLabel("Current configuration: \(configurationSummary)")
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.top, isCompactHeightPhone ? 4 : 8)
-        .transition(.opacity.combined(with: .move(edge: .top)))
-    }
-    
-    // MARK: - Configuration
-    private var configurationCard: some View {
-        VStack(spacing: isCompactHeightPhone ? 16 : 20) {
-            // Player
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Player")
-                        .font(.headline)
-                    Spacer()
-                    Text(selectedPlayer)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .accessibilityHidden(true)
-                }
-                
-                Picker("Player", selection: $selectedPlayer) {
-                    ForEach(["X", "O"], id: \.self) { Text($0) }
-                }
-                .pickerStyle(.segmented)
-                .accessibilityLabel("Select your mark")
-                .onChange(of: selectedPlayer) { _, _ in
-                    // No-op: keep explicit in case you want to auto-adjust difficulty or hints later
-                }
-                
-                Text("Choose whether you play as X or O. X moves first.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            
-            // Game Mode
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Game Mode")
-                        .font(.headline)
-                    Spacer()
-                    Text(selectedGameMode)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .accessibilityHidden(true)
-                }
-                
-                Picker("Mode", selection: $selectedGameMode) {
-                    ForEach(["AI", "P v P"], id: \.self) { Text($0) }
-                }
-                .pickerStyle(.segmented)
-                .accessibilityLabel("Select game mode")
-                .onChange(of: selectedGameMode) { _, newValue in
-                    // Gentle defaults:
-                    if newValue == "P v P" {
-                        if selectedPlayer != "X" {
-                            withAnimation(.easeInOut(duration: 0.15)) {
-                                selectedPlayer = "X"
-                            }
-                        }
-                    }
-                }
-                
-                Text("Play against AI or with a friend on the same device.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            
-            // Difficulty
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("AI Difficulty")
-                        .font(.headline)
-                    Spacer()
-                    Text(selectedDifficulty)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .opacity(mappedGameTypeIsPVP ? 0.5 : 1.0)
-                        .accessibilityHidden(true)
-                }
-                
-                Picker("Difficulty", selection: $selectedDifficulty) {
-                    ForEach(["Easy", "Medium", "Hard"], id: \.self) { Text($0) }
-                }
-                .pickerStyle(.segmented)
-                .disabled(mappedGameTypeIsPVP)
-                .opacity(mappedGameTypeIsPVP ? 0.5 : 1.0)
-                .accessibilityLabel("Select AI difficulty")
-                
-                Text("Hard plays optimally using minimax.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .opacity(mappedGameTypeIsPVP ? 0.5 : 1.0)
-            }
-        }
-        .padding(isCompactHeightPhone ? 14 : 18)
-        .background(cardBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .strokeBorder(Color.secondary.opacity(0.15), lineWidth: 1)
-        )
-        .shadow(color: shadowColor.opacity(0.06), radius: 10, x: 0, y: 6)
-        .animation(.easeInOut(duration: 0.2), value: selectedGameMode)
-        .animation(.easeInOut(duration: 0.2), value: selectedDifficulty)
-        .animation(.easeInOut(duration: 0.2), value: selectedPlayer)
-    }
-    
-    // MARK: - Start Button
-    private var startButton: some View {
-        Button {
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                startGame()
-            }
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "play.circle.fill")
-                    .imageScale(.large)
-                Text("Start Game")
-                    .font(.headline)
-            }
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, isCompactHeightPhone ? 10 : 14)
-            .padding(.horizontal, 12)
-            .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .shadow(color: Color.accentColor.opacity(0.35), radius: 10, x: 0, y: 6)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .disabled(startButtonDisabled)
-        .opacity(startButtonDisabled ? 0.6 : 1.0)
-        .padding(.top, isCompactHeightPhone ? 2 : 4)
-        .accessibilityLabel("Start game")
-        .accessibilityHint("Starts a new game with the selected configuration")
-    }
-    
-    // MARK: - Background
     private var background: some View {
         Group {
             #if os(macOS)
@@ -298,57 +130,13 @@ struct ContentView: View {
         .ignoresSafeArea()
     }
     
-    private var cardBackground: some ShapeStyle {
-        #if os(macOS)
-        return AnyShapeStyle(.regularMaterial)
-        #elseif os(visionOS)
-        return AnyShapeStyle(.thinMaterial)
-        #else
-        return AnyShapeStyle(.thinMaterial)
-        #endif
-    }
-    
-    private var shadowColor: Color {
-        colorScheme == .dark ? .black : .gray
-    }
-    
-    // MARK: - Toolbar
-    @ToolbarContentBuilder
-    private var topToolbar: some ToolbarContent {
-        #if os(macOS)
-        ToolbarItem(placement: .automatic) {
-            Text(configurationSummary)
-                .font(.footnote.weight(.semibold))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(.thinMaterial, in: Capsule())
-        }
-        #else
-        ToolbarItem(placement: .principal) {
-            Text(configurationSummary)
-                .font(.footnote.weight(.semibold))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(.thinMaterial, in: Capsule())
-        }
-        #endif
-    }
-    
-    // MARK: - Start
     private func startGame() {
-        // Reset and configure model before starting
         ticTacToeModel.resetGame()
         
-        // Configure who the AI is if playing vs AI
-        if mappedGameTypeIsPVP == false {
-            // If user selected O, AI is X; else AI is O
-            ticTacToeModel.aiPlays = startingPlayerIsO ? SquareStatus.x : SquareStatus.o
+        if !selectedGameMode.isPVP {
+            ticTacToeModel.aiPlays = startingPlayerIsO ? .x : .o
         }
-        
-        // playerToMove: assign who starts as SquareStatus
-        ticTacToeModel.playerToMove = startingPlayerIsO ? SquareStatus.o : SquareStatus.x
-        
-        // Navigate to game
+        ticTacToeModel.playerToMove = startingPlayerIsO ? .o : .x
         showGame = true
     }
 }

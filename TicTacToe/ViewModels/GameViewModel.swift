@@ -9,6 +9,11 @@ import Foundation
 import SwiftUI
 import Combine
 
+class ViewModel: ObservableObject {
+    @Published var gameOver: Bool = false
+    @Published var winner: SquareStatus = .empty
+}
+
 /// UI bilan ishlovchi ViewModel: taxta holati, navbat, o‘yin yakuni.
 /// Core (Board, AI) bilan ishlaydi, lekin UI komponentlariga bevosita bog‘lanmaydi.
 @MainActor

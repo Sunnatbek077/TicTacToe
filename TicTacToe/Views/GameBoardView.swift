@@ -14,39 +14,6 @@ import Foundation
 // Haptic feedback logikasi View'dan ajratib olindi.
 // Bu mas'uliyatlarni ajratish (Separation of Concerns) uchun yaxshi amaliyotdir.
 
-enum HapticFeedbackStyle {
-    case soft, medium, rigid, heavy
-}
-
-struct HapticManager {
-    static func trigger(style: HapticFeedbackStyle, override: Bool = false) {
-#if os(iOS) || os(tvOS) || os(visionOS)
-        let vibrationEnabled = UserDefaults.standard.bool(forKey: "vibration")
-        guard vibrationEnabled || override else { return }
-        
-        let feedbackStyle: UIImpactFeedbackGenerator.FeedbackStyle
-        switch style {
-        case .soft:
-            feedbackStyle = .soft
-        case .medium:
-            feedbackStyle = .medium
-        case .rigid:
-            feedbackStyle = .rigid
-        case .heavy:
-            feedbackStyle = .heavy
-        }
-        
-        let generator = UIImpactFeedbackGenerator(style: feedbackStyle)
-        generator.impactOccurred()
-#endif
-    }
-}
-
-
-class ViewModel: ObservableObject {
-    @Published var gameOver: Bool = false
-    @Published var winner: SquareStatus = .empty
-}
 
 struct GameBoardView: View {
     // MARK: - Properties
