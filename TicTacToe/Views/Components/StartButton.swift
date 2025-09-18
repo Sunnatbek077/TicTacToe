@@ -25,10 +25,9 @@ struct StartButton: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, isCompactHeightPhone ? 10 : 14)
             .padding(.horizontal, 12)
-            .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .shadow(color: Color.accentColor.opacity(0.35), radius: 10, x: 0, y: 6)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.glass)
         .padding(.top, isCompactHeightPhone ? 2 : 4)
         .accessibilityLabel("Start game")
         .accessibilityHint("Starts a new game with the selected configuration")
