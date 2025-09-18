@@ -1,0 +1,26 @@
+{
+  "images" : [
+    {
+      "filename" : "Icon-iOS-Default-1024x1024@1x.png",
+      "idiom" : "universal"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
+      "filename" : "Icon-iOS-Dark-1024x1024@1x.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  },
+  "properties" : {
+    "compression-type" : "gpu-optimized-best",
+    "template-rendering-intent" : "original"
+  }
+}
